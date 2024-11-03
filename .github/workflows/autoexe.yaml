@@ -1,4 +1,4 @@
-name: Build and Release EXEs
+name: Generate Requirements and Build EXEs
 
 on:
   push:
@@ -11,19 +11,31 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
-      - name: Install Dependencies
+
+      - name: Generate requirements.txt
         run: |
-          pip install pyinstaller
-          pip install colour
+          echo "Collecting requirements from .py files..."
+          (Get-Content *.py | Select-String -Pattern '^(from|import) (\w+)' -AllMatches | ForEach-Object { $_.Matches.Groups[2].Value } | Sort-Object -Unique) > requirements.txt
+          echo "Generated requirements.txt with the following content:"
+          type requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install PyInstaller
+        run: pip install pyinstaller
+
       - name: Build Executables
         run: |
           Get-ChildItem -Path . -Filter *.py | ForEach-Object {
             pyinstaller --onefile $_.Name
           }
+
       - name: Upload to Release
         uses: softprops/action-gh-release@v1
         with:
