@@ -21,12 +21,15 @@ def interpolate_color(color1, color2, fraction):
         for i in range(3)
     )
 
-def generate_gradient_tags(color1_hex, color2_hex, text, word_mode=False):
-    """Generates color tags for text based on a gradient between two hex colors,
+def generate_gradient_tags(color1_hex, color2_hex, text, color_mid_hex=None, word_mode=False):
+    """Generates color tags for text based on a gradient between two or three hex colors,
     ignoring syllable spacers ('/') and spaces.
     """
     color1_rgb = hex_to_rgb(color1_hex)
     color2_rgb = hex_to_rgb(color2_hex)
+    
+    if color_mid_hex:
+        color_mid_rgb = hex_to_rgb(color_mid_hex)
 
     gradient_tags = ""
     colored_char_count = len([char for char in text if char not in ['/', ' ']])
@@ -42,7 +45,16 @@ def generate_gradient_tags(color1_hex, color2_hex, text, word_mode=False):
             gradient_tags += char
         else:
             fraction = color_index / (colored_char_count - 1) if colored_char_count > 1 else 0
-            interpolated_color = interpolate_color(color1_rgb, color2_rgb, fraction)
+            
+            if color_mid_hex and fraction <= 0.5:
+                fraction *= 2  # Normalize to 0-1 for first half
+                interpolated_color = interpolate_color(color1_rgb, color_mid_rgb, fraction)
+            elif color_mid_hex:
+                fraction = (fraction - 0.5) * 2  # Normalize to 0-1 for second half
+                interpolated_color = interpolate_color(color_mid_rgb, color2_rgb, fraction)
+            else:
+                interpolated_color = interpolate_color(color1_rgb, color2_rgb, fraction)
+
             color_hex = rgb_to_hex(interpolated_color)
             
             # Add color tags around the character
@@ -58,7 +70,7 @@ def copy_to_clipboard(text):
 def create_ui():
     root = tk.Tk()
     root.title("Gradient Text Generator")
-    root.geometry("500x450")
+    root.geometry("500x550")
 
     style = ttk.Style()
     style.configure("TButton", padding=6, relief="flat", background="#cccccc")
@@ -101,26 +113,45 @@ def create_ui():
     end_color_preview = tk.Label(main_frame, text="", width=2, bg="#ffffff")
     end_color_preview.grid(column=3, row=1, padx=5, pady=5)
 
-    ttk.Label(main_frame, text="Text:").grid(column=0, row=2, padx=5, pady=5, sticky=tk.W)
+    # Mid color toggle and entry
+    ttk.Label(main_frame, text="Mid Color:").grid(column=0, row=2, padx=5, pady=5, sticky=tk.W)
+    mid_color_entry = tk.Entry(main_frame)
+    mid_color_entry.grid(column=1, row=2, padx=5, pady=5, sticky=(tk.W, tk.E))
+
+    def pick_mid_color():
+        color_code = colorchooser.askcolor(title="Choose Mid Color")[1]
+        if color_code:
+            mid_color_entry.delete(0, tk.END)
+            mid_color_entry.insert(0, color_code)
+            mid_color_preview.config(bg=color_code)
+
+    pick_mid_button = ttk.Button(main_frame, text="Pick Color", command=pick_mid_color)
+    pick_mid_button.grid(column=2, row=2, padx=5, pady=5)
+
+    mid_color_preview = tk.Label(main_frame, text="", width=2, bg="#ffffff")
+    mid_color_preview.grid(column=3, row=2, padx=5, pady=5)
+
+    ttk.Label(main_frame, text="Text:").grid(column=0, row=3, padx=5, pady=5, sticky=tk.W)
     text_entry = tk.Entry(main_frame, width=40)
-    text_entry.grid(column=1, row=2, columnspan=3, padx=5, pady=5, sticky=(tk.W, tk.E))
+    text_entry.grid(column=1, row=3, columnspan=3, padx=5, pady=5, sticky=(tk.W, tk.E))
 
     word_mode = tk.BooleanVar()
     word_mode_check = ttk.Checkbutton(main_frame, text="Word Mode", variable=word_mode)
-    word_mode_check.grid(column=0, row=3, columnspan=2, pady=5, sticky=tk.W)
+    word_mode_check.grid(column=0, row=4, columnspan=2, pady=5, sticky=tk.W)
 
     def generate_output():
         start_color = start_color_entry.get()
         end_color = end_color_entry.get()
+        mid_color = mid_color_entry.get() if mid_color_entry.get() else None
         text = text_entry.get()
-        result = generate_gradient_tags(start_color, end_color, text, word_mode=word_mode.get())
+        result = generate_gradient_tags(start_color, end_color, text, color_mid_hex=mid_color, word_mode=word_mode.get())
         output_text.delete(1.0, tk.END)
         output_text.insert(tk.END, result)
         preview_label.config(text=text, fg=start_color)  # Quick visual with the start color
         copy_to_clipboard(result)
 
     generate_button = ttk.Button(main_frame, text="Generate and Copy", command=generate_output)
-    generate_button.grid(column=1, row=4, columnspan=3, pady=10)
+    generate_button.grid(column=1, row=5, columnspan=3, pady=10)
 
     ttk.Label(main_frame, text="Output:").grid(column=0, row=5, padx=5, pady=5, sticky=tk.W)
     output_text = tk.Text(main_frame, height=5, width=60, wrap="word")
