@@ -22,7 +22,7 @@ def interpolate_color(color1, color2, fraction):
     )
 
 def generate_gradient_tags(color1_hex, color2_hex, text, color_mid_hexes = [], word_mode=False):
-    """Generates color tags for text based on a gradient between two or three hex colors,
+    """Generates color tags for text based on a gradient between two or more hex colors,
     ignoring syllable spacers ('/') and spaces.
     """
     color1_rgb = hex_to_rgb(color1_hex)
