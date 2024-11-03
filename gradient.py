@@ -21,66 +21,71 @@ def interpolate_color(color1, color2, fraction):
         for i in range(3)
     )
 
-def generate_gradient_tags(color1_hex, color2_hex, text, color_mid_hexes = [], word_mode=False):
+def generate_gradient_tags(color1_hex, color2_hex, text, color_mid_hexes=[], word_mode=False):
     """Generates color tags for text based on a gradient between two or more hex colors,
     ignoring syllable spacers ('/') and spaces.
     """
     color1_rgb = hex_to_rgb(color1_hex)
     color2_rgb = hex_to_rgb(color2_hex)
-    
+
     if color_mid_hexes:
         for i in range(len(color_mid_hexes)):
             if color_mid_hexes[i]:
                 color_mid_hexes[i] = hex_to_rgb(color_mid_hexes[i])
             else:
-                # none? Right, disappear
                 color_mid_hexes = []
                 break
 
     gradient_tags = ""
-    colored_char_count = len([char for char in text if char not in ['/', ' ']])
+    segments = text.split(' ') if word_mode else list(text)
+    colored_segment_count = len([seg for seg in segments if seg not in ['/', ' ']])
 
-    if colored_char_count == 0:
+    if colored_segment_count == 0:
         return text  # Return the input directly if there are no colorable characters
 
     color_index = 0  # To keep track of how many colorable characters have been processed
 
-    for i, char in enumerate(text):
-        if char in ['/', ' ']:
-            # For syllable spacers and spaces, add them directly without color tags
-            gradient_tags += char
+    for i, segment in enumerate(segments):
+        if segment in ['/', ' ']:
+            gradient_tags += segment
         else:
-            fraction = color_index / (colored_char_count - 1) if colored_char_count > 1 else 0
-
+            fraction = color_index / (colored_segment_count - 1) if colored_segment_count > 1 else 0
+            
             interpolated_color = (255, 255, 255)
             if color_mid_hexes:
                 length = len(color_mid_hexes)
-                # plus one on the length because uh
                 fracnum = 1 / (length + 1)
-                # include starting col and ending col
-                for i in range(length + 2):
-                    # i am a fan of not Indention so this condition is reversed
-                    # fraction >= (i * fracnum) and fraction <= ((i + 1) * fracnum)
-                    if fraction < (i * fracnum) or fraction > ((i + 1) * fracnum):
+
+                for j in range(length + 2):
+                    if fraction < (j * fracnum) or fraction > ((j + 1) * fracnum):
                         continue
 
-                    col1i = i - 1
-                    col1 = color1_rgb if col1i < 0 else color_mid_hexes[col1i]
-                    col2 = color2_rgb if i >= length else color_mid_hexes[i]
-
-                    interpolated_color = interpolate_color(col1, col2, (fraction - fracnum * i) * (length + 1))
-                    # no need, we've already got our colour
+                    col1 = color1_rgb if j == 0 else color_mid_hexes[j - 1]
+                    col2 = color2_rgb if j >= length else color_mid_hexes[min(j, length - 1)]
+                    
+                    interpolated_color = interpolate_color(col1, col2, (fraction - fracnum * j) * (length + 1))
                     break
             else:
                 interpolated_color = interpolate_color(color1_rgb, color2_rgb, fraction)
 
             color_hex = rgb_to_hex(interpolated_color)
             
-            # Add color tags around the character
-            gradient_tags += f"<color={color_hex}>{char}</color>"
+            # Handle segments with '/' within them by splitting and reapplying color tags
+            if '/' in segment:
+                sub_segments = segment.split('/')
+                for sub_seg in sub_segments[:-1]:
+                    gradient_tags += f"<color={color_hex}>{sub_seg}</color>/"
+                gradient_tags += f"<color={color_hex}>{sub_segments[-1]}</color>"
+            else:
+                gradient_tags += f"<color={color_hex}>{segment}</color>"
+            
             color_index += 1
 
+            if word_mode and i < len(segments) - 1:
+                gradient_tags += ' '  # Add space between words
+
     return gradient_tags.strip()
+
 
 def copy_to_clipboard(text):
     """Copies text to the clipboard."""
