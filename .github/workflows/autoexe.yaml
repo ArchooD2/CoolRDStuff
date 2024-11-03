@@ -20,7 +20,7 @@ jobs:
       - name: Generate requirements.txt
         run: |
           echo "Collecting requirements from .py files..."
-          (Get-Content *.py | Select-String -Pattern '^(from|import) (\w+)' -AllMatches | ForEach-Object { $_.Matches.Groups[2].Value } | Sort-Object -Unique) > requirements.txt
+          (Get-Content *.py | Select-String -Pattern '^(from|import) (\w+)' -AllMatches | ForEach-Object { $_.Matches.Groups[2].Value } | Where-Object { $_ -notin @('os', 'sys', 're', 'time', 'math', 'datetime', 'json', 'random', 'subprocess', 'tkinter', 'itertools', 'functools', 'collections', 'threading', 'logging', 'hashlib') } | Sort-Object -Unique) > requirements.txt
           echo "Generated requirements.txt with the following content:"
           type requirements.txt
 
