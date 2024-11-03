@@ -22,24 +22,32 @@ def interpolate_color(color1, color2, fraction):
     )
 
 def generate_gradient_tags(color1_hex, color2_hex, text, word_mode=False):
-    """Generates color tags for text based on a gradient between two hex colors."""
+    """Generates color tags for text based on a gradient between two hex colors,
+    ignoring syllable spacers ('/') and spaces.
+    """
     color1_rgb = hex_to_rgb(color1_hex)
     color2_rgb = hex_to_rgb(color2_hex)
 
     gradient_tags = ""
-    if word_mode:
-        words = text.split()
-        for i, word in enumerate(words):
-            fraction = i / (len(words) - 1) if len(words) > 1 else 0  # Handle edge case for single-word text
+    colored_char_count = len([char for char in text if char not in ['/', ' ']])
+
+    if colored_char_count == 0:
+        return text  # Return the input directly if there are no colorable characters
+
+    color_index = 0  # To keep track of how many colorable characters have been processed
+
+    for i, char in enumerate(text):
+        if char in ['/', ' ']:
+            # For syllable spacers and spaces, add them directly without color tags
+            gradient_tags += char
+        else:
+            fraction = color_index / (colored_char_count - 1) if colored_char_count > 1 else 0
             interpolated_color = interpolate_color(color1_rgb, color2_rgb, fraction)
             color_hex = rgb_to_hex(interpolated_color)
-            gradient_tags += f"<color={color_hex}>{word}</color> "
-    else:
-        for i, char in enumerate(text):
-            fraction = i / (len(text) - 1) if len(text) > 1 else 0  # Handle edge case for single-letter text
-            interpolated_color = interpolate_color(color1_rgb, color2_rgb, fraction)
-            color_hex = rgb_to_hex(interpolated_color)
+            
+            # Add color tags around the character
             gradient_tags += f"<color={color_hex}>{char}</color>"
+            color_index += 1
 
     return gradient_tags.strip()
 
