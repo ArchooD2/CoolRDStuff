@@ -20,7 +20,8 @@ jobs:
       - name: Build Executables
         run: |
           Get-ChildItem -Path . -Filter *.py | ForEach-Object {
-            pyinstaller --onefile $_.Name
+            pyinstaller --onefile $_.Name --hidden-import=colour
+
           }
       
       - name: Upload to Release
