@@ -21,15 +21,21 @@ def interpolate_color(color1, color2, fraction):
         for i in range(3)
     )
 
-def generate_gradient_tags(color1_hex, color2_hex, text, color_mid_hex=None, word_mode=False):
-    """Generates color tags for text based on a gradient between two or three hex colors,
+def generate_gradient_tags(color1_hex, color2_hex, text, color_mid_hexes = [], word_mode=False):
+    """Generates color tags for text based on a gradient between two or more hex colors,
     ignoring syllable spacers ('/') and spaces.
     """
     color1_rgb = hex_to_rgb(color1_hex)
     color2_rgb = hex_to_rgb(color2_hex)
     
-    if color_mid_hex:
-        color_mid_rgb = hex_to_rgb(color_mid_hex)
+    if color_mid_hexes:
+        for i in range(len(color_mid_hexes)):
+            if color_mid_hexes[i]:
+                color_mid_hexes[i] = hex_to_rgb(color_mid_hexes[i])
+            else:
+                # none? Right, disappear
+                color_mid_hexes = []
+                break
 
     gradient_tags = ""
     colored_char_count = len([char for char in text if char not in ['/', ' ']])
@@ -45,13 +51,26 @@ def generate_gradient_tags(color1_hex, color2_hex, text, color_mid_hex=None, wor
             gradient_tags += char
         else:
             fraction = color_index / (colored_char_count - 1) if colored_char_count > 1 else 0
-            
-            if color_mid_hex and fraction <= 0.5:
-                fraction *= 2  # Normalize to 0-1 for first half
-                interpolated_color = interpolate_color(color1_rgb, color_mid_rgb, fraction)
-            elif color_mid_hex:
-                fraction = (fraction - 0.5) * 2  # Normalize to 0-1 for second half
-                interpolated_color = interpolate_color(color_mid_rgb, color2_rgb, fraction)
+
+            interpolated_color = (255, 255, 255)
+            if color_mid_hexes:
+                length = len(color_mid_hexes)
+                # plus one on the length because uh
+                fracnum = 1 / (length + 1)
+                # include starting col and ending col
+                for i in range(length + 2):
+                    # i am a fan of not Indention so this condition is reversed
+                    # fraction >= (i * fracnum) and fraction <= ((i + 1) * fracnum)
+                    if fraction < (i * fracnum) or fraction > ((i + 1) * fracnum):
+                        continue
+
+                    col1i = i - 1
+                    col1 = color1_rgb if col1i < 0 else color_mid_hexes[col1i]
+                    col2 = color2_rgb if i >= length else color_mid_hexes[i]
+
+                    interpolated_color = interpolate_color(col1, col2, (fraction - fracnum * i) * (length + 1))
+                    # no need, we've already got our colour
+                    break
             else:
                 interpolated_color = interpolate_color(color1_rgb, color2_rgb, fraction)
 
@@ -144,7 +163,7 @@ def create_ui():
         end_color = end_color_entry.get()
         mid_color = mid_color_entry.get() if mid_color_entry.get() else None
         text = text_entry.get()
-        result = generate_gradient_tags(start_color, end_color, text, color_mid_hex=mid_color, word_mode=word_mode.get())
+        result = generate_gradient_tags(start_color, end_color, text, color_mid_hexes=[mid_color], word_mode=word_mode.get())
         output_text.delete(1.0, tk.END)
         output_text.insert(tk.END, result)
         preview_label.config(text=text, fg=start_color)  # Quick visual with the start color
@@ -168,11 +187,16 @@ def create_ui():
     root.mainloop()
 
 if __name__ == "__main__":
-    if len(sys.argv) == 4:
+    if len(sys.argv) >= 4:
         color1 = sys.argv[1]  # Start color
         color2 = sys.argv[2]  # End color
         text = sys.argv[3]    # Text input
-        result = generate_gradient_tags(color1, color2, text)
+        mid_colors = []
+        i = 4
+        while i < len(sys.argv):
+            mid_colors.append(sys.argv[i])
+            i += 1
+        result = generate_gradient_tags(color1, color2, text, color_mid_hexes=mid_colors)
         print(result)
     else:
         create_ui()
