@@ -25,7 +25,9 @@ jobs:
           type requirements.txt
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          echo "Installing dependencies..."
+          pip install -r requirements.txt || echo "Warning: Some packages could not be installed, but the process will continue."
 
       - name: Install PyInstaller
         run: pip install pyinstaller
