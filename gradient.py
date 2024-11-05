@@ -171,8 +171,45 @@ def create_ui():
         result = generate_gradient_tags(start_color, end_color, text, color_mid_hexes=[mid_color], word_mode=word_mode.get())
         output_text.delete(1.0, tk.END)
         output_text.insert(tk.END, result)
-        preview_label.config(text=text, fg=start_color)  # Quick visual with the start color
+        update_preview(text, start_color, end_color, mid_color, word_mode.get())
         copy_to_clipboard(result)
+
+    def update_preview(text, start_color, end_color, mid_color, word_mode):
+        """Updates the preview text widget to display the gradient."""
+        start_rgb = hex_to_rgb(start_color)
+        end_rgb = hex_to_rgb(end_color)
+        mid_rgb = hex_to_rgb(mid_color) if mid_color else None
+        segments = text.split(' ') if word_mode else list(text)
+        colored_segment_count = len([seg for seg in segments if seg not in ['/', ' ']])
+
+        preview_text_widget.config(state=tk.NORMAL)
+        preview_text_widget.delete(1.0, tk.END)
+        color_index = 0
+
+        for i, segment in enumerate(segments):
+            if segment in ['/', ' ']:
+                preview_text_widget.insert(tk.END, segment)
+            else:
+                fraction = color_index / (colored_segment_count - 1) if colored_segment_count > 1 else 0
+
+                if mid_rgb:
+                    length = 1  # Since we have only one mid color
+                    fracnum = 1 / (length + 1)
+                    col1 = start_rgb if fraction < fracnum else mid_rgb
+                    col2 = mid_rgb if fraction < fracnum else end_rgb
+                    interpolated_color = interpolate_color(col1, col2, fraction * (length + 1))
+                else:
+                    interpolated_color = interpolate_color(start_rgb, end_rgb, fraction)
+
+                color_hex = rgb_to_hex(interpolated_color)
+                preview_text_widget.insert(tk.END, segment, (color_hex,))
+                color_index += 1
+
+        for tag in preview_text_widget.tag_names():
+            if tag != "sel":  # Avoid re-configuring the default selection tag
+                preview_text_widget.tag_config(tag, foreground=tag)
+
+        preview_text_widget.config(state=tk.DISABLED, selectbackground="", selectforeground="")
 
     generate_button = ttk.Button(main_frame, text="Generate and Copy", command=generate_output)
     generate_button.grid(column=1, row=5, columnspan=3, pady=10)
@@ -181,8 +218,9 @@ def create_ui():
     output_text = tk.Text(main_frame, height=5, width=60, wrap="word")
     output_text.grid(column=0, row=6, columnspan=4, padx=5, pady=5, sticky=(tk.W, tk.E))
 
-    preview_label = tk.Label(main_frame, text="", font=("Helvetica", 12, "bold"))
-    preview_label.grid(column=0, row=7, columnspan=4, padx=5, pady=5)
+    preview_text_widget = tk.Text(main_frame, height=3, width=60, wrap="word", font=("Helvetica", 12, "bold"))
+    preview_text_widget.grid(column=0, row=7, columnspan=4, padx=5, pady=5)
+    preview_text_widget.config(state=tk.DISABLED, selectbackground=None, selectforeground=None)
 
     root.columnconfigure(0, weight=1)
     root.rowconfigure(0, weight=1)
